@@ -7,20 +7,26 @@ import hashlib
 import json
 
 from flask import Flask, jsonify
-
+from uuid import uuid4
+from urllib.parse import urlparse
 
 # 1. Build Blockchain
 
 class Blockchain:
     def __init__(self):
         self.chain = []
+        self.transactions = []
         self.create_block(proof = 1, previous_hash = '0')
+        self.nodes = set()
         
     def create_block(self, proof, previous_hash):
         block = {'index': len(self.chain) + 1,
                  'timestamp': str(datetime.datetime.utcnow()),
                  'proof': proof,
-                 'previous_hash': previous_hash}
+                 'previous_hash': previous_hash,
+                 'transactions' : self.transactions}
+        #we have to remove the transactions now
+        self.transactions = []
         self.chain.append(block)
         return block
     
@@ -60,39 +66,58 @@ class Blockchain:
             previous_block = block
             block_index  += 1
         return True
-
+    
+    def add_transaction(self, sender, receiver, amount):
+        self.transactions.append({'sender' : sender,
+                                  'receiver' : receiver,
+                                  'amount' : amount })
+        previous_block = self.get_previous_block()
+        return previous_block['index'] + 1
+            
+    def add_node(self, address):
+        parsed_url = urlparse(address)
+        self.nodes.add(parsed_url)
+            
 #2. Mining our Blockchains
 
 # Ceate Web app
-app = Flask(__name__)
-        
-# Creating a Blockchain
-blockchain = Blockchain()        
-@app.route('/mine_block', methods = ['GET'])
-def mine_block():
-    previous_block = blockchain.get_previous_block()
-    previous_proof = previous_block['proof']
-    proof = blockchain.proof_of_work(previous_proof)
-    previous_hash = blockchain.hash(previous_block)
-    block = blockchain.create_block(proof, previous_hash)
-    response = {'message' : 'Congratulation, you just mind a block!',
-                'index': block['index'],
-                'timestamp': block['timestamp'],
-                'proof' : block['proof'],
-                'previous_hash' : block['previous_hash']}
-
-    return jsonify(response), 200      
-
-@app.route('/get_chain', methods =['GET'])
-def get_chain():
-    response = {'chain' : blockchain.chain,
-                'length' : len(blockchain.chain)}
-    return jsonify(response), 200
-
-@app.route('/is_valid', methods = ['GET'])
-def is_valid():
-    response = {'isValid': blockchain.is_chain_valid(blockchain.chain)}
-    return jsonify(response), 200
-
-# Running the app
-app.run(host ='0.0.0.0', port= 5000)    
+if __name__ == '__main__':
+    app = Flask(__name__)
+            
+    # Creating a Blockchain
+    blockchain = Blockchain()        
+    @app.route('/mine_block', methods = ['GET'])
+    def mine_block():
+        previous_block = blockchain.get_previous_block()
+        previous_proof = previous_block['proof']
+        proof = blockchain.proof_of_work(previous_proof)
+        previous_hash = blockchain.hash(previous_block)
+        block = blockchain.create_block(proof, previous_hash)
+        response = {'message' : 'Congratulation, you just mind a block!',
+                    'index': block['index'],
+                    'timestamp': block['timestamp'],
+                    'proof' : block['proof'],
+                    'previous_hash' : block['previous_hash']}
+    
+        return jsonify(response), 200      
+    
+    @app.route('/get_chain', methods =['GET'])
+    def get_chain():
+        response = {'chain' : blockchain.chain,
+                    'length' : len(blockchain.chain)}
+        return jsonify(response), 200
+    
+    @app.route('/is_valid', methods = ['GET'])
+    def is_valid():
+        response = {'isValid': blockchain.is_chain_valid(blockchain.chain)}
+        return jsonify(response), 200
+    
+    # Running the app
+    #app.run(host ='0.0.0.0', port= 5000)    
+    bc = Blockchain()
+    bc.add_transaction('tom','tom2',32)
+    bc.add_transaction('tom2','tom3',2)
+    
+    #adding nodes
+    bc.add_node('http://localhost:5001')
+    

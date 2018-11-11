@@ -8,8 +8,6 @@ web3.eth.getAccounts().then(fetchedAccounts =>{
 });
 
 async function test() {
-   
-
     let accountsAwait  = await web3.eth.getAccounts()
     console.log(accountsAwait)
 }
